@@ -6,16 +6,6 @@ load_dotenv()
 # Discord Webhook URL
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 
-# タイムゾーン (日本時間)
-TIMEZONE = "Asia/Tokyo"
-
-# 配信スケジュール (時:分)
-SCHEDULE_TIMES = [
-    {"hour": 6, "minute": 30},
-    {"hour": 12, "minute": 0},
-    {"hour": 18, "minute": 0},
-]
-
 # 取得するニュースカテゴリとRSSフィードURL
 NEWS_CATEGORIES = {
     "ビジネス": {

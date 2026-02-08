@@ -16,59 +16,83 @@
 
 毎日 **6:30** / **12:00** / **18:00** (日本時間) に自動配信
 
-## セットアップ
+## Google Cloud Run へのデプロイ (推奨)
 
-### 1. Discord Webhook URL を取得
+### 前提条件
+
+- Google Cloud アカウント (無料枠で運用可能)
+- `gcloud` CLI インストール済み
+
+### 手順
+
+#### 1. Discord Webhook URL を取得
 
 1. Discord サーバーの **サーバー設定** > **連携サービス** > **ウェブフック** を開く
 2. **新しいウェブフック** をクリック
 3. 名前とチャンネルを設定
 4. **ウェブフックURLをコピー** をクリック
 
-### 2. 環境変数を設定
+#### 2. GCP プロジェクトを準備
 
 ```bash
-cp .env.example .env
+# GCP にログイン
+gcloud auth login
+
+# プロジェクト作成 (初回のみ)
+gcloud projects create my-nikkei-bot --name="Nikkei News Bot"
+gcloud config set project my-nikkei-bot
+
+# 必要な API を有効化
+gcloud services enable \
+  run.googleapis.com \
+  cloudbuild.googleapis.com \
+  cloudscheduler.googleapis.com \
+  artifactregistry.googleapis.com
 ```
 
-`.env` ファイルを編集し、`DISCORD_WEBHOOK_URL` に取得した URL を設定:
-
-```
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxxxx/yyyyy
-```
-
-### 3A. Docker で実行 (推奨)
+#### 3. デプロイ
 
 ```bash
-docker compose up -d
+# 環境変数を設定してデプロイスクリプトを実行
+export GCP_PROJECT_ID=my-nikkei-bot
+export DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxxxx/yyyyy
+
+./deploy.sh
 ```
 
-ログ確認:
+これだけで完了です。Cloud Scheduler が毎日 6:30 / 12:00 / 18:00 (JST) に自動実行します。
+
+#### 4. テスト実行 (手動)
+
 ```bash
-docker compose logs -f
+gcloud run jobs execute nikkei-news-bot --region=asia-northeast1
 ```
 
-停止:
-```bash
-docker compose down
-```
+### 運用コスト
 
-### 3B. 直接実行
+Cloud Run Jobs の無料枠内で運用できます:
+- 1日3回 x 数秒の実行 = 月間の無料枠 (月240,000 vCPU秒) のごくわずか
+- Cloud Scheduler: 月3ジョブ無料
+
+## ローカルで実行する場合
 
 ```bash
+# 依存パッケージインストール
 pip install -r requirements.txt
+
+# 環境変数を設定して実行
+export DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxxxx/yyyyy
 python -m src.main
 ```
 
-## オプション
-
-### 起動時に即座に配信
-
+Docker の場合:
 ```bash
-python -m src.main --run-now
+cp .env.example .env
+# .env を編集して DISCORD_WEBHOOK_URL を設定
+docker compose up
 ```
 
-### 環境変数
+## 環境変数
 
 | 変数 | 説明 | デフォルト |
 |---|---|---|
@@ -80,12 +104,13 @@ python -m src.main --run-now
 
 ```
 src/
-├── main.py            # エントリポイント、スケジューラ
+├── main.py            # エントリポイント (実行して終了)
 ├── config.py          # 設定管理
 ├── scraper.py         # RSS/スクレイピングによるニュース取得
 └── discord_sender.py  # Discord Webhook 送信
+deploy.sh              # GCP デプロイスクリプト
 ```
 
-- **RSS フィード**: RSS愛好会提供の非公式フィード + キーワードフィルタリング
-- **スクレイピング**: RSS で不足分を日経サイトから補完
-- **スケジューリング**: APScheduler による cron 形式スケジュール
+- **ニュース取得**: RSS愛好会提供の日経フィード + キーワードフィルタリング
+- **補完**: RSS で不足分は日経サイトをスクレイピング
+- **スケジューリング**: GCP Cloud Scheduler → Cloud Run Jobs
