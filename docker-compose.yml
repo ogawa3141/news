@@ -1,0 +1,9 @@
+services:
+  nikkei-news-bot:
+    build: .
+    container_name: nikkei-news-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Tokyo
